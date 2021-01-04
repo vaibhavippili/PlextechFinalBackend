@@ -19,17 +19,6 @@ db.on('error', console.error.bind(console, 'MongoDB connection error:'))
 app.use('/', todoRouter)
 
 
-
-
-
-
-
-
-
-
-
-
-
 const aboutus = [ 
     {'names': 'Vaibhav ', 'description': "Hi My name is Vaibhav!"},
     {'names': 'Anoushka ', 'description': "Hi My name is Anoushka!"}]
@@ -65,6 +54,31 @@ app.get('/weather', (req, res) => {
         res.send(weather.data)
     })
 });
+
+const puppeteer = require('puppeteer');
+rawTxt = '';
+ covidstats = [] ;
+
+async function scrapeCovidStat(url) {
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto(url);
+
+    const [el] = await page.$x('//*[@id="gatsby-focus-wrapper"]/div/div[4]/div[2]/h2/p');
+    const txt = await el.getProperty('textContent');
+    rawTxt = await txt.jsonValue();
+    covidstats = [ 
+        {'headlines': "Today's WHO Report: ", 'report': rawTxt}]
+   ;
+ 
+//browser.close();
+}
+
+ scrapeCovidStat('https://covid19.who.int/');
+
+ app.get('/covid', (req, res) => {
+    res.send(covidstats); 
+ });
 
 
 app.listen(port, () => console.log(`Listening on Port ${port}`));
