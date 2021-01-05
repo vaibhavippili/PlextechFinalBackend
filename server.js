@@ -1,25 +1,119 @@
 const express = require('express');
-const cors = require('cors')
+const cors = require('cors');
 const app = express();
-const axios = require('axios')
-const bodyParser = require('body-parser')
-const db = require('./db')
-const todoRouter = require('./routes/todo-router')
+const axios = require('axios');
+const mongoose = require('mongoose');
 app.use(express.json());
-app.use(cors())
-const port = 4007
+app.use(cors());
+const port = 4007;
+
+const ObjectId = require("mongoose").Types.ObjectId;
+
+mongoose.connect("mongodb://localhost/todo", {
+  useUnifiedTopology: true,
+  useNewUrlParser: true,
+});
+
+const userSchema = new mongoose.Schema({
+  username: String,
+  password: String,
+});
+const User = mongoose.model("User", userSchema);
+
+const todosSchema = new mongoose.Schema({
+  userId: mongoose.Schema.ObjectId,
+  todos: [
+    {
+      checked: Boolean,
+      text: String,
+      id: String,
+    },
+  ],
+});
+const Todos = mongoose.model("Todos", todosSchema);
+
+
+app.post("/register", async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User.findOne({ username }).exec();
+  if (user) {
+    res.status(500);
+    res.json({
+      message: "user already exists",
+    });
+    return;
+  }
+  await User.create({ username, password });
+  res.json({
+    message: "success",
+  });
+});
+
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User.findOne({ username }).exec();
+  if (!user || user.password !== password) {
+    res.status(403);
+    res.json({
+      message: "invalid login",
+    });
+    return;
+  }
+  res.json({
+    message: "success",
+  });
+});
+
+app.post("/todos", async (req, res) => {
+  const { authorization } = req.headers;
+  const [, token] = authorization.split(" ");
+  const [username, password] = token.split(":");
+  const todosItems = req.body;
+  const user = await User.findOne({ username }).exec();
+  if (!user || user.password !== password) {
+    res.status(403);
+    res.json({
+      message: "invalid access",
+    });
+    return;
+  }
+  const todos = await Todos.findOne({ userId: user._id }).exec();
+  if (!todos) {
+    await Todos.create({
+      userId: user._id,
+      todos: todosItems,
+    });
+  } else {
+    todos.todos = todosItems;
+    await todos.save();
+  }
+  res.json(todosItems);
+});
+
+app.get("/todos", async (req, res) => {
+  const { authorization } = req.headers;
+  const [, token] = authorization.split(" ");
+  const [username, password] = token.split(":");
+  const user = await User.findOne({ username }).exec();
+  if (!user || user.password !== password) {
+    res.status(403);
+    res.json({
+      message: "invalid access",
+    });
+    return;
+  }
+  const { todos } = await Todos.findOne({ userId: user._id }).exec();
+  res.json(todos);
+});
 
 
 
-app.use(bodyParser.urlencoded({ extended: true }))
-app.use(cors())
-app.use(bodyParser.json())
-
-db.on('error', console.error.bind(console, 'MongoDB connection error:'))
-app.use('/', todoRouter)
 
 
-const aboutus = [ 
+
+
+
+  const aboutus = [ 
     {'names': 'Vaibhav ', 'description': "Hi My name is Vaibhav!"},
     {'names': 'Anoushka ', 'description': "Hi My name is Anoushka!"}]
 
@@ -76,9 +170,15 @@ async function scrapeCovidStat(url) {
 
  scrapeCovidStat('https://covid19.who.int/');
 
- app.get('/covid', (req, res) => {
+app.get('/covid', (req, res) => {
     res.send(covidstats); 
  });
 
 
-app.listen(port, () => console.log(`Listening on Port ${port}`));
+const db = mongoose.connection;
+db.on("error", console.error.bind(console, "connection error:"));
+db.once("open", function () {
+app.listen(port, () => {
+    console.log(`Listening on http://localhost:${port}`);
+   });
+ });
