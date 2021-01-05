@@ -9,7 +9,7 @@ const port = 4007;
 
 const ObjectId = require("mongoose").Types.ObjectId;
 
-mongoose.connect("mongodb://localhost/todo", {
+mongoose.connect('mongodb+srv://Vippili:Boplord12345@plextechfinalbackend.l1i7i.mongodb.net/PlextechFinalBackend?retryWrites=true&w=majority', {
   useUnifiedTopology: true,
   useNewUrlParser: true,
 });
